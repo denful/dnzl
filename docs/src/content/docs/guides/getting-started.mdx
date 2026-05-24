@@ -1,0 +1,122 @@
+---
+title: Getting Started
+description: A minimal working example — one behaviour, one actor, one stream.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Steps>
+
+1. **Write a behaviour**
+
+   A behaviour is a Nix function `msg → attrset`. No imports, no base class:
+
+   ```nix
+   counter =
+     count: msg:
+     if msg == "inc" then
+       { reply = count + 1; next-behaviour = counter (count + 1); }
+     else if msg == "get" then
+       { reply = count; }
+     else
+       { };
+   ```
+
+   `reply` — value placed in the outbox. `next-behaviour` — behaviour for the next message. Returning `{ }` silently drops the message.
+
+2. **Wrap it in an actor**
+
+   `actor` takes an initial behaviour and returns a cycle-c — a function `{ inbox } → { outbox, states }`:
+
+   ```nix
+   inherit (dnzl) actor;
+   counter-c = actor (counter 0);
+   ```
+
+3. **Feed it a stream**
+
+   `st` builds a stream from its arguments:
+
+   ```nix
+   inherit (dnzl.ned) st;
+   result = counter-c { inbox = st "inc" "inc" "get"; };
+   result.outbox.toList
+   # → [ 1 2 2 ]
+   ```
+
+4. **Use the helpers**
+
+   `reply` and `become` are sugar for constructing the response attrset:
+
+   ```nix
+   inherit (dnzl) actor reply become;
+
+   counter =
+     count: msg:
+     if msg == "inc" then
+       reply (count + 1) // become (counter (count + 1))
+     else if msg == "get" then
+       reply count
+     else
+       { };
+   ```
+
+   `reply.right` / `reply.left` tag values as Either — enables stream splitting:
+
+   ```nix
+   counter =
+     count: msg:
+     if msg == "inc" then reply.right (count + 1) // become (counter (count + 1))
+     else if msg == "get" then reply.right count
+     else { };
+
+   counter-c = actor (counter 0);
+   result = counter-c { inbox = st "inc" "inc" "get"; };
+   result.outbox.toList
+   # → [ { right = 1; } { right = 2; } { right = 2; } ]
+   ```
+
+</Steps>
+
+<Aside type="note" title="See it in tests">
+[`tests/examples.nix` — `stateful.test-counter`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`reply-types.test-right-and-left`](https://github.com/denful/dnzl/blob/main/tests/examples.nix)
+</Aside>
+
+## Stateless actors with map-c
+
+For pure stream transforms with no state, `map-c` is more direct than `actor`:
+
+```nix
+inherit (dnzl.ned) st map-c;
+
+double-c = map-c (n: n * 2);   # ST → ST, no inbox/outbox wrapper
+
+(double-c (st 1 2 3)).toList
+# → [ 2 4 6 ]
+```
+
+`map-c f` returns a stream transformer. Call it directly on a stream, not as `{ inbox = ... }`.
+
+<Aside type="note" title="See it in tests">
+[`tests/examples.nix` — `stateless.test-echo`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`stateless.test-transform`](https://github.com/denful/dnzl/blob/main/tests/examples.nix)
+</Aside>
+
+## Minimal flake setup
+
+```nix
+{
+  inputs.dnzl.url = "github:denful/dnzl";
+  outputs = { dnzl, ... }:
+    let d = dnzl.lib;
+    in {
+      # d.actor, d.reply, d.become, d.send, d.merge
+      # d.ned.st, d.ned.map-c, d.ned.when-c, d.ned.run, d.ned.static-d
+    };
+}
+```
+
+## What's next
+
+- [Actors and Streams](/explanation/actors-and-streams/) — `actor`, `scanl`, `ST` functor in depth
+- [Reply and Become](/explanation/reply-become/) — stateful actors, Either routing
+- [Building Pipelines](/guides/pipeline/) — multi-actor wiring

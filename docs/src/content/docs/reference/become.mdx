@@ -1,0 +1,56 @@
+---
+title: become
+description: Swap behaviour for the next message. How state machines work.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Signature
+
+```nix
+become : behaviour → { next-behaviour: behaviour }
+```
+
+## Description
+
+`become new-beh` returns `{ next-behaviour = new-beh }`. The actor uses the `next-behaviour` field to replace the current behaviour after processing each message.
+
+Without `become`, every message is handled by the initial behaviour. With `become`, each message can leave a different behaviour for the next — this is how state machines work.
+
+## Example
+
+```nix
+counter = count: msg:
+  if msg == "inc" then
+    reply (count + 1) // become (counter (count + 1))
+  else if msg == "get" then
+    reply count
+  else
+    { };
+```
+
+After `"inc"`, `become (counter (count + 1))` installs a new behaviour that has `count + 1` closed over. The next message will call `counter (count + 1)`.
+
+## State machine
+
+```nix
+toggle =
+  state: msg:
+  if msg == "flip"  then reply.right (! state) // become (toggle (! state))
+  else if msg == "query" then reply.right state
+  else { };
+
+toggle-c = actor (toggle false);
+(toggle-c { inbox = st "flip" "query" "flip" "query"; }).outbox.toList
+# [ { right = true; } { right = true; } { right = false; } { right = false; } ]
+```
+
+<Aside type="note" title="See it in tests">
+[`tests/actor.nix` — `test-become`](https://github.com/denful/dnzl/blob/main/tests/actor.nix), [`tests/examples.nix` — `stateful.test-toggle`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`stateful.test-reset`](https://github.com/denful/dnzl/blob/main/tests/examples.nix)
+</Aside>
+
+## Notes
+
+- `become` is only meaningful inside a behaviour returned to `actor`. Using it in a plain function has no special effect — it just produces an attrset.
+- If `next-behaviour` is absent, the current behaviour is reused for the next message.
+- `become` is stateless itself — it just packages a function reference into an attrset field.

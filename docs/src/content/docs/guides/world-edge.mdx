@@ -1,0 +1,103 @@
+---
+title: World Edge
+description: Using ned.run and static-d to drive actors from static inputs and collect results.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## The world edge
+
+dnzl actors are pure functions. They never read from files, call external services, or produce side effects. The "world edge" is where you connect actors to the outside world — feeding in static data and reading out results.
+
+## ned.run
+
+`run` is the standard entry point. It takes a `{ inbox }` attrset and a cycle-c, runs the cycle, and returns `{ outbox, states, ... }`:
+
+```nix
+inherit (dnzl.ned) run static-d st when-c;
+inherit (dnzl) actor reply become;
+
+counter = count: msg:
+  if msg == "inc" then reply.right (count + 1) // become (counter (count + 1))
+  else if msg == "get" then reply.right count
+  else { };
+
+counter-c = actor (counter 0);
+
+result = run { inbox = static-d [ "inc" "inc" "get" ]; } counter-c;
+result.outbox.toList
+# [ { right = 1; } { right = 2; } { right = 2; } ]
+```
+
+`static-d` converts a Nix list to an `ST` stream. It is the standard way to feed static inputs.
+
+<Aside type="note" title="See it in tests">
+[`tests/examples.nix` — `world-edge.test-run-counter`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`world-edge.test-run-validator`](https://github.com/denful/dnzl/blob/main/tests/examples.nix)
+</Aside>
+
+## Inline anonymous cycle
+
+`run` accepts any cycle-c, including an anonymous lambda:
+
+```nix
+result = run { inbox = static-d [ "inc" "inc" "get" ]; } (
+  { inbox }:
+  counter-c { inherit inbox; }
+);
+```
+
+Useful for one-off wiring without naming the cycle.
+
+<Aside type="note" title="See it in tests">
+[`tests/patterns.nix` — `run-inline.test-anonymous-cycle`](https://github.com/denful/dnzl/blob/main/tests/patterns.nix)
+</Aside>
+
+## Collecting results
+
+`result.outbox` is a `ST`. Convert to a Nix list with `.toList`:
+
+```nix
+result.outbox.toList          # all replies
+result.outbox.right.toList    # successes only
+result.outbox.left.toList     # errors only
+```
+
+Access the full state stream for side-channel data:
+
+```nix
+result.states.fields "log"    # ST of log values from each state
+(result.states.fields "log").toList
+```
+
+<Aside type="note" title="See it in tests">
+[`tests/examples.nix` — `extra-outputs.test-audit-log`](https://github.com/denful/dnzl/blob/main/tests/examples.nix)
+</Aside>
+
+## Composite inline cycle
+
+Wire multiple actors inside `run`:
+
+```nix
+result = run {
+  inbox = static-d [
+    { type = "count"; cmd = "inc"; }
+    { type = "count"; cmd = "inc"; }
+    { type = "div"; dividend = 10; divisor = 2; }
+    { type = "count"; cmd = "get"; }
+  ];
+} (
+  { inbox }:
+  let
+    counts  = counter-c { inbox = when-c (m: m.type == "count") inbox (m: m.cmd); };
+    divides = div-c     { inbox = when-c (m: m.type == "div")   inbox (m: m);     };
+  in
+  { outbox = counts.outbox (divides.outbox); }
+);
+
+result.outbox.toList
+# [ { right = 1; } { right = 2; } { right = 2; } { right = 5; } ]
+```
+
+<Aside type="note" title="See it in tests">
+[`tests/patterns.nix` — `run-inline.test-inline-composite`](https://github.com/denful/dnzl/blob/main/tests/patterns.nix)
+</Aside>

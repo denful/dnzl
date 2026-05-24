@@ -1,0 +1,56 @@
+---
+title: send
+description: Forward a stream to a ref. Creates a fresh actor session per call.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Signature
+
+```nix
+send : cycle-c → ST → { reply: ST }
+```
+
+## Description
+
+`send ref msgs` calls `ref { inbox = msgs }` and returns `{ reply = ref_result.outbox }`. The reply is placed in the outbox by the actor machinery.
+
+Each `send` call creates a **fresh** actor session. The ref's state does not persist between `send` calls. This is by design: `send` is delegation, not a stateful channel.
+
+## Example
+
+```nix
+counter-c = actor (counter 0);
+
+forwarder = msg: send counter-c (st msg);
+forwarder-c = actor forwarder;
+
+(forwarder-c { inbox = st "inc" "inc" "get"; }).outbox.toList
+# [ { right = 1; } { right = 1; } { right = 0; } ]
+```
+
+Each message creates a fresh counter. `"inc"` → counter starts at 0, increments to 1. `"get"` → counter starts at 0, returns 0. No shared state between calls.
+
+## Batch send
+
+Pass multiple messages in one `send`:
+
+```nix
+batch = msg: send counter-c (st.fromList msg.cmds);
+
+batch-c = actor batch;
+(batch-c { inbox = st { cmds = [ "inc" "inc" "get" ]; }; }).outbox.toList
+# [ { right = 1; } { right = 2; } { right = 2; } ]
+```
+
+One `send` call, multiple messages to one fresh counter session.
+
+<Aside type="note" title="See it in tests">
+[`tests/examples.nix` — `delegation.test-fresh-per-message`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`delegation.test-batch-send`](https://github.com/denful/dnzl/blob/main/tests/examples.nix)
+</Aside>
+
+## Notes
+
+- `send` is defined as: `send = ref: msgs: { reply = (ref { inbox = msgs; }).outbox; }`
+- The returned `{ reply = … }` is an outbox-compatible attrset — actor will flatten the ST reply into the outbox stream.
+- For dynamic dispatch (ref from the message), see the [proxy pattern](/patterns/proxy/).

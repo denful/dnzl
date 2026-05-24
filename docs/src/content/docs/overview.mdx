@@ -1,0 +1,63 @@
+---
+title: Documentation Structure
+description: Guide to dnzl's documentation — explanations, guides, patterns, and API reference.
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Understand
+
+<Card title="Core Concepts" icon="open-book">
+How dnzl's mental model works and why it's designed this way.
+</Card>
+
+<CardGrid>
+  <LinkCard title="Actors and Streams" href="/explanation/actors-and-streams/" description="What an actor is, how ST streams work as inboxes and outboxes, and how behaviour functions compose." />
+  <LinkCard title="Reply and Become" href="/explanation/reply-become/" description="How reply wraps return values, how become swaps behaviour, and how Either routing works." />
+  <LinkCard title="Composition" href="/explanation/composition/" description="Wiring actors: outbox → inbox, merge, send, when-c routing, and multi-output cycles." />
+  <LinkCard title="Lazy Evaluation" href="/explanation/lazy-evaluation/" description="How Nix laziness serves as the dnzl runtime — dependency order, ping-pong, feedback loops." />
+</CardGrid>
+
+## Guides
+
+<Card title="How-To Guides" icon="pencil">
+Step-by-step walkthroughs and practical examples.
+</Card>
+
+<CardGrid>
+  <LinkCard title="Getting Started" href="/guides/getting-started/" description="A minimal working example: one behaviour, one actor, one stream. Everything you need to understand the basics." />
+  <LinkCard title="Building Pipelines" href="/guides/pipeline/" description="Chain actors into processing pipelines using outbox-to-inbox wiring and merge." />
+  <LinkCard title="Private Channels" href="/guides/private-channels/" description="Tagged bus pattern: multiple clients share one stream, each reads only their own replies." />
+  <LinkCard title="World Edge" href="/guides/world-edge/" description="Using ned.run and static-d to drive actors from static inputs and collect results." />
+</CardGrid>
+
+## Patterns
+
+<Card title="Design Patterns" icon="puzzle">
+Recurring structures lifted from dnzl's design notes.
+</Card>
+
+<CardGrid>
+  <LinkCard title="Proxy and Delegation" href="/patterns/proxy/" description="Forward messages to refs carried in the envelope. Capability refs as permissions." />
+  <LinkCard title="Multi-Output Cycles" href="/patterns/multi-output/" description="Cycles that return named output streams — values, errors, audit logs — side by side." />
+  <LinkCard title="Scatter-Gather" href="/patterns/scatter-gather/" description="Fan-out to N independent actors, fan-in results with merge." />
+  <LinkCard title="Ping-Pong" href="/patterns/ping-pong/" description="Two actors wired via lazy let — pong feeds ping without circularity." />
+  <LinkCard title="Dynamic Dispatch" href="/patterns/dynamic-dispatch/" description="Ref lives in the message envelope; dispatcher calls it at runtime." />
+  <LinkCard title="Capability Refs" href="/patterns/capability-refs/" description="Server vends refs; holding a ref is the permission." />
+</CardGrid>
+
+## Reference
+
+<Card title="API Documentation" icon="document">
+Complete reference for every primitive.
+</Card>
+
+<CardGrid>
+  <LinkCard title="actor" href="/reference/actor/" description="Wraps a behaviour into a cycle-c. Manages scanl state and outbox extraction." />
+  <LinkCard title="reply" href="/reference/reply/" description="reply, reply.right, reply.left — wraps return values for outbox extraction." />
+  <LinkCard title="become" href="/reference/become/" description="Swap behaviour for the next message. How state machines work." />
+  <LinkCard title="send" href="/reference/send/" description="Forward a stream to a ref. Creates a fresh actor session per call." />
+  <LinkCard title="merge" href="/reference/merge/" description="Fan-in multiple streams sequentially into one." />
+  <LinkCard title="ST Combinators" href="/reference/st-combinators/" description="st.map, st.filter, st.flatMap, st.scanl as functor combinators." />
+  <LinkCard title="ned Primitives" href="/reference/ned-primitives/" description="run, static-d, map-c, when-c, scope-d, ctx-s — the ned layer under dnzl." />
+</CardGrid>

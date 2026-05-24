@@ -1,0 +1,43 @@
+{
+  "nodes": {
+    "ned": {
+      "locked": {
+        "lastModified": 1778904359,
+        "narHash": "sha256-4N654WkqPMhOkL64Z6MtnzvdWntiC+7WJ4SsiXV3vDg=",
+        "owner": "denful",
+        "repo": "ned",
+        "rev": "ccbe59153a0d30df2a39c92884a3ab6aa1ebafc2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "denful",
+        "repo": "ned",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "ned": "ned",
+        "with-inputs": "with-inputs"
+      }
+    },
+    "with-inputs": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1777938927,
+        "narHash": "sha256-efneEYyUSQ7HOg/peGvfotb/P1N1+WWp10P1kMQSpe8=",
+        "owner": "denful",
+        "repo": "with-inputs",
+        "rev": "e8729bdb4afb57fc72c2a7084a77a7ee09c7e38f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "denful",
+        "repo": "with-inputs",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

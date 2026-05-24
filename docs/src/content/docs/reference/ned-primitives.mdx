@@ -1,0 +1,109 @@
+---
+title: ned Primitives
+description: run, static-d, map-c, when-c, scope-d, ctx-s — the ned layer under dnzl.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Overview
+
+`ned` is the stream-cycle library that dnzl builds on. Access it via `dnzl.ned`:
+
+```nix
+inherit (dnzl.ned) st run static-d map-c when-c;
+```
+
+## st
+
+Stream constructor. Takes variadic arguments and returns a `ST`:
+
+```nix
+st 1 2 3        # ST [1 2 3]
+st "a" "b"      # ST ["a" "b"]
+st              # ST [] (empty stream when called with no args — use st.fromList [] or st with no application)
+```
+
+### st.fromList
+
+Convert a Nix list to a stream:
+
+```nix
+st.fromList [ 1 2 3 ]   # ST [1 2 3]
+```
+
+### st.flatten
+
+Flatten a stream of streams one level:
+
+```nix
+st.flatten (st (st 1 2) (st 3 4))   # ST [1 2 3 4]
+```
+
+## run
+
+Entry point for driving a cycle-c:
+
+```nix
+run : { inbox: ST, ... } → cycle-c → { outbox: ST, states: ST, ... }
+```
+
+```nix
+result = run { inbox = static-d [ "inc" "inc" "get" ]; } counter-c;
+result.outbox.toList
+```
+
+<Aside type="note" title="See it in tests">
+[`tests/examples.nix` — `world-edge.test-run-counter`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`tests/patterns.nix` — `run-inline.test-anonymous-cycle`](https://github.com/denful/dnzl/blob/main/tests/patterns.nix)
+</Aside>
+
+## static-d
+
+Convert a Nix list to a `ST` for use as an inbox driver:
+
+```nix
+static-d [ "inc" "inc" "get" ]   # ST ["inc" "inc" "get"]
+```
+
+Equivalent to `st.fromList` in most contexts. The `-d` suffix indicates it is a driver (input side).
+
+## map-c
+
+Map a function over a stream — cycle-c form:
+
+```nix
+map-c f stream   # equivalent to stream (st.map f)
+```
+
+```nix
+doubled = map-c (x: x * 2) (st 1 2 3);
+doubled.toList   # [2 4 6]
+```
+
+## when-c
+
+Filter and transform a stream — content-based routing:
+
+```nix
+when-c pred stream f
+# → stream filtered to elements where pred holds, then mapped with f
+```
+
+```nix
+counts = counter-c {
+  inbox = when-c (m: m.type == "count") inbox (m: m.cmd);
+};
+```
+
+Messages where `m.type == "count"` are extracted, mapped to `m.cmd`, and passed to `counter-c`.
+
+<Aside type="note" title="See it in tests">
+[`tests/examples.nix` — `routing.test-type-routing`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`tests/advanced.nix` — `isolated-sessions.test-two-clients-independent-state`](https://github.com/denful/dnzl/blob/main/tests/advanced.nix)
+</Aside>
+
+## scope-d
+
+Scope a driver to a sub-key. Used for partitioning composite inboxes.
+
+## ctx-s
+
+Context-aware stream. Lets a stream reference the surrounding `ned` context. Used for advanced wiring where cycles need access to the global `run` context.

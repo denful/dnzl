@@ -1,0 +1,121 @@
+---
+title: Dnzl
+description: Pure Nix actor system. Behaviours, streams, lazy wiring.
+template: splash
+hero:
+  tagline: Actor system for Nix. Behaviours are functions. Built on stream-based cycles from Ned.
+  image:
+   html: |
+     <img src="/dnzl.png" style="max-width: 80%" />
+  actions:
+    - text: Get Started
+      link: /guides/getting-started/
+      icon: rocket
+    - text: Reference
+      link: /reference/actor/
+      icon: information
+      variant: secondary
+    - text: How it works
+      link: /explanation/actors-and-streams/
+      icon: open-book
+      variant: minimal
+    - text: Source Code
+      link: https://github.com/denful/dnzl
+      icon: github
+      variant: minimal
+
+---
+
+import { Card, CardGrid, Aside } from '@astrojs/starlight/components';
+
+```nix
+# A behaviour is a plain Nix function
+counter = count: msg:
+  if msg == "inc" then reply.right (count + 1) // become (counter (count + 1))
+  else if msg == "get" then reply.right count
+  else { };   # unknown message → no reply, no state change
+
+counter-c = actor (counter 0);
+
+result = counter-c { inbox = st "inc" "inc" "get"; };
+result.outbox.toList
+# → [ { right = 1; } { right = 2; } { right = 2; } ]
+```
+
+## Pipelines are let bindings
+
+Wire actors by passing `outbox` as `inbox`. Nix laziness resolves evaluation order.
+
+```nix
+# Scatter: validate N inputs in parallel; gather: merge results
+inputs  = [ 5 (-1) 8 0 2 ];
+actors  = builtins.map (n: validator-c { inbox = st n; }) inputs;
+results = merge (builtins.map (a: a.outbox) actors);
+
+results.toList
+# → [ { right = 5; } { left = "non-positive: -1"; } { right = 8; }
+#     { left = "non-positive: 0"; } { right = 2; } ]
+```
+
+```nix
+# Ping-pong via lazy let — pong feeds ping
+pong = counter-c { inherit inbox; };
+ping = counter-c { inbox = pong.outbox (st.map (_: "get")); };
+```
+
+```nix
+# Either split: route successes and errors to separate streams
+validated = validator-c { inbox = st 5 (-1) 8 0 2; };
+validated.outbox.right.toList  # → [ 5 8 2 ]
+validated.outbox.left.toList   # → [ "non-positive: -1" "non-positive: 0" ]
+```
+
+## Capability refs
+
+A cycle-c is a Nix value. Return it as a reply — the receiver gains the ability to invoke that actor.
+
+```nix
+# Server vends fresh counter sessions on connect
+session-server-c = actor (_: reply counter-c);
+
+session-refs = (session-server-c { inbox = st "connect" "connect"; }).outbox;
+
+# Each ref is an independent session
+sessions = session-refs.flatMap (ref: (ref { inbox = st "inc" "inc" "get"; }).outbox);
+sessions.toList
+# → [ { right = 1; } { right = 2; } { right = 2; }   ← session 1
+#     { right = 1; } { right = 2; } { right = 2; } ]  ← session 2
+```
+
+## Private channels
+
+Tag replies with client id. Each client filters the shared outbox.
+
+```nix
+server-c = actor (msg: reply { id = msg.id; result = msg.value * 2; });
+
+server   = server-c { inbox = shared-bus; };
+client-a = server.outbox.filter (r: r.id == "a");
+client-b = server.outbox.filter (r: r.id == "b");
+```
+
+---
+
+<CardGrid>
+  <Card title="Pure Nix" icon="puzzle">
+    Actors are functions. State is a closure. Pipelines are `let` bindings.
+  </Card>
+  <Card title="Lazy pipelines" icon="right-arrow">
+    Nix laziness resolves actor dependency order. Ping-pong, feedback loops, N-stage pipelines — all `let` bindings.
+  </Card>
+  <Card title="Either routing" icon="random">
+    `reply.right` / `reply.left` tag outbox entries. `outbox.right` and `outbox.left` split the stream without filtering.
+  </Card>
+  <Card title="Refs as capabilities" icon="approve-check">
+    A cycle-c is a value. Return it as a reply. Holding the ref is the permission.
+  </Card>
+</CardGrid>
+
+<Aside type="note" title="All examples are tested">
+Every snippet on this page is verified in [`tests/`](https://github.com/denful/dnzl/tree/main/tests). Tests are user-code — copy any section as a starting point.
+</Aside>

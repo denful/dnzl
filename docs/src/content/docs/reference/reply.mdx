@@ -1,0 +1,54 @@
+---
+title: reply
+description: reply, reply.right, reply.left — wraps return values for outbox extraction.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Forms
+
+```nix
+reply data          # { reply = data; }
+reply.right data    # { reply = { right = data; }; }
+reply.left  data    # { reply = { left = data; }; }
+```
+
+## Description
+
+`reply` is an attrset with a `__functor` field, so it works both as a function and as a namespace.
+
+`reply data` is shorthand for writing `{ reply = data; }` in a behaviour's return value. The actor extracts `reply` fields from the state stream to build `outbox`.
+
+`reply.right` and `reply.left` produce Either-tagged values. The outbox stream exposes `.right` and `.left` for splitting the stream by tag.
+
+## Combining with become
+
+Use `//` to merge `reply` and `become` in one expression:
+
+```nix
+reply data // become new-beh
+# { reply = data; next-behaviour = new-beh; }
+```
+
+## Either splitting
+
+```nix
+validator-c = actor (n:
+  if n > 0 then reply.right n
+  else reply.left "err: ${toString n}");
+
+a = validator-c { inbox = st 5 (-1) 3; };
+a.outbox.toList          # [ { right = 5; } { left = "err: -1"; } { right = 3; } ]
+a.outbox.right.toList    # [ 5 3 ]
+a.outbox.left.toList     # [ "err: -1" ]
+```
+
+<Aside type="note" title="See it in tests">
+[`tests/examples.nix` — `reply-types.test-plain`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`reply-types.test-right-and-left`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`either.test-split-stream`](https://github.com/denful/dnzl/blob/main/tests/examples.nix)
+</Aside>
+
+## Notes
+
+- `reply` without `.right`/`.left` puts the raw value in outbox — no tagging.
+- A behaviour that returns `{ }` (no `reply` field) produces no outbox entry for that message.
+- The `reply` field can be a `ST` — `states.fields "reply"` flattens it, so one message can produce multiple outbox entries.

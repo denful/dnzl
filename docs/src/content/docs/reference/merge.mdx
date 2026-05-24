@@ -1,0 +1,72 @@
+---
+title: merge
+description: Fan-in multiple streams sequentially into one.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Signature
+
+```nix
+merge : [ST] → ST
+```
+
+## Description
+
+`merge streams` concatenates a list of `ST` streams sequentially. All elements from the first stream appear before any from the second, and so on.
+
+Implemented as:
+
+```nix
+merge = streams: st.flatten (st.fromList streams);
+```
+
+`st.fromList` turns the list into a stream-of-streams; `st.flatten` flatMaps with identity, concatenating them.
+
+## Example
+
+```nix
+merge [ (st 1 2 3) (st 4 5) (st 6) ]
+# → ST [1 2 3 4 5 6]
+```
+
+## Fan-in pattern
+
+Combine multiple actor outboxes into one downstream inbox:
+
+```nix
+sender-a = actor (n: reply (n + 1))  { inbox = st 0 1 2; };
+sender-b = actor (n: reply (n * 10)) { inbox = st 1 2; };
+
+downstream = actor process {
+  inbox = merge [ sender-a.outbox sender-b.outbox ];
+};
+```
+
+`sender-a` emits `1 2 3`; `sender-b` emits `10 20`. Downstream sees `1 2 3 10 20` — all of sender-a first, then all of sender-b.
+
+<Aside type="note" title="See it in tests">
+[`tests/examples.nix` — `fan-in.test-merge-two`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`fan-in.test-merge-three`](https://github.com/denful/dnzl/blob/main/tests/examples.nix), [`tests/patterns.nix` — `multi-sender.test-two-senders-shared-actor`](https://github.com/denful/dnzl/blob/main/tests/patterns.nix)
+</Aside>
+
+## Augmenting an inbox
+
+Use `merge` to extend an inbox with static messages:
+
+```nix
+bootstrapped-c =
+  { inbox }:
+  counter-c { inbox = merge [ inbox (st "inc" "inc") ]; };
+```
+
+External messages first, then the two bootstrap `"inc"` commands appended after.
+
+<Aside type="note" title="See it in tests">
+[`tests/patterns.nix` — `multi-sender.test-extend-with-static`](https://github.com/denful/dnzl/blob/main/tests/patterns.nix)
+</Aside>
+
+## Notes
+
+- Order is deterministic and matches list order.
+- `merge` does not interleave streams — it concatenates. For true interleaving, you would need a different combinator.
+- An empty list `merge []` produces an empty stream.
