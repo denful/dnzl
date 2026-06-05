@@ -66,6 +66,11 @@ export default defineConfig({
 						{ label: 'Ping-Pong', slug: 'patterns/ping-pong' },
 						{ label: 'Dynamic Dispatch', slug: 'patterns/dynamic-dispatch' },
 						{ label: 'Capability Refs', slug: 'patterns/capability-refs' },
+						{ label: 'Effects and Handlers', slug: 'patterns/effects' },
+						{ label: 'Conditions and Restarts', slug: 'patterns/conditions' },
+						{ label: 'Schema Validation', slug: 'patterns/validation' },
+						{ label: 'Leader Election', slug: 'patterns/leader-election' },
+						{ label: 'Idempotency', slug: 'patterns/idempotency' },
 					],
 				},
 				{

@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "bend": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1778912746,
+        "narHash": "sha256-hITGk9iEkMw4dDMEooTICCgHiZC1riLGtrGK2r/duzE=",
+        "owner": "denful",
+        "repo": "bend",
+        "rev": "af1b3f16594d89b797615483dccc5f98605e2d12",
+        "type": "github"
+      },
+      "original": {
+        "owner": "denful",
+        "repo": "bend",
+        "type": "github"
+      }
+    },
     "ned": {
       "locked": {
         "lastModified": 1778904359,
@@ -15,9 +31,27 @@
         "type": "github"
       }
     },
+    "nix-effects": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1778686186,
+        "narHash": "sha256-oxjrcHFSV2+Rxg4LE4Hupa5HjleTvU1Ir6jp5SburLE=",
+        "owner": "denful",
+        "repo": "nix-effects",
+        "rev": "c3c68a45deb892d028711eeff8b80937e30a90dd",
+        "type": "github"
+      },
+      "original": {
+        "owner": "denful",
+        "repo": "nix-effects",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
+        "bend": "bend",
         "ned": "ned",
+        "nix-effects": "nix-effects",
         "with-inputs": "with-inputs"
       }
     },

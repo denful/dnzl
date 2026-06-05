@@ -4,6 +4,8 @@
 }:
 let
   ned = inputs.ned.lib { inherit inputs; };
+  fx = import inputs.nix-effects { };
+  bend = import inputs.bend;
   inherit (ned) st;
 
   reply = {
@@ -58,6 +60,8 @@ in
 {
   inherit
     ned
+    fx
+    bend
     actor
     reply
     become
